@@ -1,0 +1,51 @@
+{
+	"name": "dataflow_transform_population_data",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_population_raw_tsv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_country_lookup",
+						"type": "DatasetReference"
+					},
+					"name": "source2"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DelimitedText1",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "Select1"
+				},
+				{
+					"name": "DerivedColumn1"
+				},
+				{
+					"name": "Lookup1"
+				},
+				{
+					"name": "Select2"
+				},
+				{
+					"name": "Pivot1"
+				}
+			],
+			"script": "source(output(\n\t\t{indic_de,geo\\time} as string,\n\t\t{2008 } as string,\n\t\t{2009 } as string,\n\t\t{2010 } as string,\n\t\t{2011 } as string,\n\t\t{2012 } as string,\n\t\t{2013 } as string,\n\t\t{2014 } as string,\n\t\t{2015 } as string,\n\t\t{2016 } as string,\n\t\t{2017 } as string,\n\t\t{2018 } as string,\n\t\t{2019 } as double\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1\nsource(output(\n\t\tcountry as string,\n\t\tcountry_code_2_digit as string,\n\t\tcountry_code_3_digit as string,\n\t\tcontinent as string,\n\t\tpopulation as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source2\nsource1 select(mapColumn(\n\t\t{indic_de,geo\\time},\n\t\t{2019 }\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nSelect1 derive(age_group = split({indic_de,geo\\time},',')[1],\n\t\tcountry_code_2_digit = split({indic_de,geo\\time},',')[2]) ~> DerivedColumn1\nDerivedColumn1, source2 lookup(DerivedColumn1@country_code_2_digit == source2@country_code_2_digit,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> Lookup1\nLookup1 select(mapColumn(\n\t\tcountry,\n\t\tcountry_code_2_digit = DerivedColumn1@country_code_2_digit,\n\t\tcountry_code_3_digit,\n\t\tpopulation,\n\t\tage_group,\n\t\t{2019 }\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select2\nSelect2 pivot(groupBy(country,\n\t\tcountry_code_2_digit,\n\t\tcountry_code_3_digit,\n\t\tpopulation),\n\tpivotBy(age_group, ['PC_Y0_14', 'PC_Y15_24', 'PC_Y25_49', 'PC_Y50_64', 'PC_Y65_79', 'PC_Y80_MAX']),\n\tage = sum({2019 }),\n\tcolumnNaming: '$N$V',\n\tlateral: true) ~> Pivot1\nPivot1 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['populationprocessed'],\n\tumask: 0022,\n\tpreCommands: [],\n\tpostCommands: [],\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tmapColumn(\n\t\tcountry,\n\t\tcountry_code_2_digit,\n\t\tcountry_code_3_digit,\n\t\tpopulation,\n\t\tage_group_0_14 = agePC_Y0_14,\n\t\tage_group_15_24 = agePC_Y15_24,\n\t\tage_group_25_49 = agePC_Y25_49,\n\t\tage_group_50_64 = agePC_Y50_64,\n\t\tage_group_65_79 = agePC_Y65_79,\n\t\tage_group_80_MAX = agePC_Y80_MAX\n\t),\n\tpartitionBy('hash', 1)) ~> sink1"
+		}
+	}
+}

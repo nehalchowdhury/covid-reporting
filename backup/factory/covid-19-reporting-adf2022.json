@@ -1,0 +1,9 @@
+{
+	"name": "covid-19-reporting-adf2022",
+	"location": "westus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "897935a0-d096-49e8-937e-8aeb888f7d41",
+		"tenantId": "4fe00a95-de38-4160-80f8-bd1f1a59c5dc"
+	}
+}
